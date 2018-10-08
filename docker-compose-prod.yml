@@ -1,0 +1,53 @@
+# The main difference between this file and the other compose is basically the build context and production Dockerfile locations
+# Similar effects can also be accomplished by environment variables or build args most of the time but it makes it easier to see the differences
+# between dev and production when something isnt behaving in a similar fashion.
+version: '3.1'
+services:
+
+  node:
+    build: ./docker/node
+    volumes:
+      - ./keystone:/usr/src/app
+    restart: on-failure
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - mongo
+    links:
+     - "mongo:slagerswedstrijden_mongo"
+    logging:
+      options:
+        max-size: "100K"
+        max-file: "10"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./docker/nginx/Dockerfile
+    volumes:
+      - ./docker/nginx/ssl:/etc/nginx/ssl/
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: on-failure
+    links:
+      - "node:slagerswedstrijden_node"
+    logging:
+      options:
+        max-size: "100K"
+        max-file: "10"
+
+  mongo:
+    image: bitnami/mongodb:latest
+    env_file:
+      - ./docker/env/mongo.env
+    volumes:
+      - mongo:/bitnami
+    restart: on-failure
+    logging:
+      options:
+        max-size: "100K"
+        max-file: "10"
+
+volumes:
+ mongo:

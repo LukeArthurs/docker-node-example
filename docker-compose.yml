@@ -1,0 +1,79 @@
+version: '3.1'
+services:
+
+  # Node service
+  node:
+    # Where to find the Dockerfile
+    build: ./docker/node
+    # This binds your node application folder to the /usr/src/app folder in the container so you 
+    # can update the container files from your IDE for example
+    volumes:
+      - ./node:/usr/src/app
+    # Restart policy, I prefer this one the most because the container wont startup automitcally when I restart my computer.
+    restart: unless-startup automitcally when I restart my computer.
+    # Will wait untill the mongo service is up an running to start. This does not mean the mongo processes are ready for connections yet
+    # but it does help reduce container restarts 
+    depends_on:
+      - mongo
+    # With current compose versions 3+ links isnt really necessary since any container can access another one through its network
+    # by its service name BUT I like defining it to reduce risk of changing the service name here and node in my nginx conf for example
+    links:
+     - "mongo:example_mongo"
+    # Logging file options (Completely optional and has default values) This basically says loop through a max of 10 log files
+    # That have a maximum size of 100 kilobytes
+    logging:
+      options:
+        max-size: "100K"
+        max-file: "10"
+
+  angular:
+    build: ./docker/node-angular
+    volumes:
+      - ./angular-seed:/usr/src/app/
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "100K"
+        max-file: "10"
+
+  nginx:
+    build: ./docker/nginx-dev
+    volumes:
+      - ./docker/nginx-dev/ssl:/etc/nginx/ssl/
+    # This specifically tells docker to open up the ports on the host machine and point them to the specified container ports
+    # Left is host port and right is container port. If not defined then containers can't be accessed by external http requests.
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    links:
+      - "node:example_node"
+      - "angular:example_angular"
+    logging:
+      options:
+        max-size: "100K"
+        max-file: "10"
+
+  mongo:
+    image: bitnami/mongodb:4.0
+    # This is where you either define environment or env_file. Using environment you have to define all the variables in the file
+    # as so - "MONGODB_DATABASE=example" which is alright but its better to keep the clutter down and move it to the file.
+    # Using env_file also makes using docker secrets easier which is meant to more securly pass your environment variables
+    env_file:
+      - ./docker/env/mongo.env
+    # This volume does not bind a local directory but it uses a predefined docker volume which is defined in the volumes:
+    # section below. Its similar to local binding but without the overhead of copying files on the fly between host and container which
+    # which helps when deploying multiple database containers for example.
+    volumes:
+      - mongo:/bitnami
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "100K"
+        max-file: "10"
+
+# Volumes defined for persitent storage, one here specifically for mongo.
+volumes:
+ mongo:
